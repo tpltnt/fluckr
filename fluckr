@@ -1,0 +1,68 @@
+#!/usr/bin/env python2
+
+"""
+A is simple scraper to extract images from flickr. This is done because
+Yahoo! bullies you signing up.
+"""
+import argparse
+import requests
+import sys
+from bs4 import BeautifulSoup
+
+# argument parser
+parser = argparse.ArgumentParser(description='Get images from flickr without being bullied into signing up.')
+parser.add_argument("-s", "--size", type=str, choices=["s", "small", "m", "medium", "l", "large", "original"],
+                    help="indicate desired size (defaults to 'original')")
+parser.add_argument("url", help="URL of the desired image")
+args = parser.parse_args()
+
+# adjust the URL
+if '/' != args.url[-1]:
+    args.url += '/'
+if not args.size or "original" == args.size:
+    args.url += 'sizes/o/'
+if "s" == args.size or "small" == args.size:
+    args.url += 'sizes/s/'
+if "m" == args.size or "medium" == args.size:
+    args.url += 'sizes/m/'
+if "l" == args.size or "large" == args.size:
+    args.url += 'sizes/l/'
+
+#
+# actually get the download URL
+#
+res = requests.get(args.url)
+if res.status_code != requests.codes.ok:
+    print("request failed: " + str(res.status_code))
+    sys.exit(1)
+
+soup = BeautifulSoup(res.text, 'html.parser')
+dheaders = soup.find_all("div", id="all-sizes-header")
+if 1 != len(dheaders):
+    print("found more download information headers than expected")
+    sys.exit(2)
+
+header = dheaders[0]
+chunks = header.find_all("dl")
+if 1 > len(chunks):
+    print("found more download information fields than expected")
+    sys.exit(3)
+
+# check for license / download restrictions?
+dline = chunks[1]
+atags = dline.find_all("a")
+if 1 != len(atags):
+    print("more HTML a-tags found than expected")
+    sys.exit(4)
+
+imagelink = str(atags[0].get('href'))
+
+# get the actual image
+res = requests.get(imagelink)
+if res.status_code != requests.codes.ok:
+    print("request failed: " + str(res.status_code))
+    sys.exit(5)
+filename = imagelink.split('/')[-1]
+with open(filename, 'wb') as outfile:
+    outfile.write(res.content)
+
