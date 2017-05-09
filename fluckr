@@ -5,9 +5,11 @@ A is simple scraper to extract images from flickr. This is done because
 Yahoo! bullies you signing up.
 """
 import argparse
+import os.path
 import requests
 import sys
 from bs4 import BeautifulSoup
+
 
 # argument parser
 parser = argparse.ArgumentParser(description='Get images from flickr without being bullied into signing up.')
@@ -56,13 +58,18 @@ if 1 != len(atags):
     sys.exit(4)
 
 imagelink = str(atags[0].get('href'))
+filename = imagelink.split('/')[-1]
+
+# don't download if file already exists
+if os.path.isfile(filename):
+    sys.exit(0)
 
 # get the actual image
 res = requests.get(imagelink)
 if res.status_code != requests.codes.ok:
     print("request failed: " + str(res.status_code))
     sys.exit(5)
-filename = imagelink.split('/')[-1]
+
 with open(filename, 'wb') as outfile:
     outfile.write(res.content)
 
